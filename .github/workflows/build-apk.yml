@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -51,3 +53,11 @@ jobs:
         with:
           name: Clipboard-Collage-apk
           path: Clipboard-Collage.apk
+
+      - name: Publish a release with the APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v1.0.${{ github.run_number }}" Clipboard-Collage.apk \
+            --title "Clipboard Collage build ${{ github.run_number }}" \
+            --notes "Download Clipboard-Collage.apk below and open it on your phone to install."
