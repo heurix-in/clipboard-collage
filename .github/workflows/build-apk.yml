@@ -36,6 +36,7 @@ jobs:
           cp native/res/xml/file_paths.xml android/app/src/main/res/xml/file_paths.xml
           cp -r native/res/mipmap-* android/app/src/main/res/
           sed -i -E 's/>#[0-9A-Fa-f]{6,8}</>#2B54E0</' android/app/src/main/res/values/ic_launcher_background.xml || true
+          find android/app/src/main/res -name 'splash.png' -exec cp native/splash.png {} \;
 
       - name: Copy the web app in
         run: npx cap sync android
