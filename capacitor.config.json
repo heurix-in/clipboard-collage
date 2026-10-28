@@ -1,0 +1,7 @@
+{
+  "appId": "com.clipcollage.app",
+  "appName": "Clipboard Collage",
+  "webDir": "www",
+  "server": { "androidScheme": "https" },
+  "backgroundColor": "#0E1117"
+}

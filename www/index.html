@@ -1,0 +1,897 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Clipboard Collage</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one-screen tool — header bar, 16:9 stage on the left, control rail on the right; stacks on phones */
+:root{
+  --bg:#ECEEF3; --panel:#FFFFFF; --ink:#141925; --muted:#5A6375; --line:#D6DAE3; --stage:#DFE3EA;
+  --accent:#2B54E0; --accent-ink:#FFFFFF; --accent-soft:rgba(43,84,224,.12); --field:#F4F5F8;
+  --f-display:"Bricolage Grotesque","Manrope",system-ui,sans-serif;
+  --f-body:"Manrope",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1117; --panel:#161A22; --ink:#E6E9F0; --muted:#8E97A9; --line:#2A303C; --stage:#0A0C11;
+    --accent:#7090FF; --accent-ink:#0B1020; --accent-soft:rgba(112,144,255,.16); --field:#1D222C;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1117; --panel:#161A22; --ink:#E6E9F0; --muted:#8E97A9; --line:#2A303C; --stage:#0A0C11;
+  --accent:#7090FF; --accent-ink:#0B1020; --accent-soft:rgba(112,144,255,.16); --field:#1D222C;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.45}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.app{height:100%;display:grid;grid-template-rows:auto minmax(0,1fr)}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--panel);border-bottom:1px solid var(--line);
+  padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.brand{display:flex;align-items:baseline;gap:10px;margin-right:auto;min-width:0}
+.brand h1{font-family:var(--f-display);font-weight:700;font-size:20px;letter-spacing:-.01em;margin:0;white-space:nowrap}
+.ratio{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:1px 6px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 14px;border-radius:8px;border:1px solid var(--line);background:var(--panel);
+  font-weight:600;cursor:pointer;transition:background .15s,border-color .15s}
+.btn:hover{border-color:var(--accent);background:var(--accent-soft)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.07);background:var(--accent)}
+.btn svg{width:16px;height:16px;flex:none}
+.btn.small{height:30px;padding:0 10px;font-size:13px}
+.btn.danger-arm{border-color:#C2362B;color:#C2362B}
+
+main{display:grid;grid-template-columns:minmax(0,1fr) 300px;min-height:0}
+.stage{display:flex;flex-direction:column;gap:10px;min-width:0;min-height:0;background:var(--stage);
+  padding-block:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:16px}
+.wrap{flex:1;min-height:0;display:grid;place-items:center}
+canvas#cv{display:block;max-width:100%;box-shadow:0 1px 2px rgba(0,0,0,.12),0 8px 30px rgba(0,0,0,.14);touch-action:none;border-radius:2px;background:#fff}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap}
+.btn:disabled{opacity:.4;cursor:default}
+.btn:disabled:hover{border-color:var(--line);background:var(--panel)}
+.statusbar{display:flex;gap:10px 18px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--muted)}
+.statusbar .now{color:var(--ink);font-weight:600}
+.statusbar .dims{font-family:var(--f-mono);font-size:12px;font-variant-numeric:tabular-nums;margin-left:auto}
+.hints{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--muted)}
+kbd{font-family:var(--f-mono);font-size:11px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:var(--panel);color:var(--ink)}
+
+aside{background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;min-height:0;
+  padding-block:16px 24px;padding-left:16px;padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:22px}
+.sec{display:flex;flex-direction:column;gap:10px}
+.sec-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.label{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.linkbtn{background:none;border:0;padding:0;color:var(--accent);font-size:12px;font-weight:600;cursor:pointer}
+.linkbtn:hover{text-decoration:underline}
+.layouts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.lay{aspect-ratio:16/9;max-width:100%;padding:3px;border-radius:6px;border:1px solid var(--line);background:var(--field);cursor:pointer;display:block}
+.lay svg{width:100%;height:100%;display:block}
+.lay rect{fill:var(--muted);opacity:.55}
+.lay:hover{border-color:var(--accent)}
+.lay[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft);background:var(--accent-soft)}
+.lay[aria-pressed="true"] rect{fill:var(--accent);opacity:.9}
+.lay-name{font-size:12px;color:var(--muted)}
+.lay-name b{color:var(--ink);font-weight:600}
+
+.row{display:flex;align-items:center;gap:10px}
+.row label{flex:none;width:88px;font-size:13px}
+.row input[type=range]{flex:1;min-width:0;accent-color:var(--accent)}
+.val{font-family:var(--f-mono);font-size:12px;width:44px;text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+.seg{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--field)}
+.seg button{border:0;background:none;height:32px;cursor:pointer;font-weight:600;font-size:13px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.check{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer}
+.check input{accent-color:var(--accent);width:16px;height:16px}
+.swatches{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.sw{width:28px;height:28px;border-radius:50%;border:1px solid var(--line);cursor:pointer;padding:0}
+.sw[aria-pressed="true"]{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--accent)}
+.colorpick{position:relative;width:28px;height:28px;border-radius:50%;overflow:hidden;border:1px dashed var(--muted);display:grid;place-items:center;cursor:pointer}
+.colorpick input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.colorpick span{font-size:16px;line-height:1;color:var(--muted);pointer-events:none}
+.slotbox{border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px;background:var(--field)}
+.slotbox .t{font-weight:700}
+.slotbox p{margin:0;font-size:13px;color:var(--muted)}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap}
+.note{font-size:12px;color:var(--muted);background:var(--accent-soft);border-radius:8px;padding:8px 10px}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(10px);opacity:0;pointer-events:none;
+  background:var(--ink);color:var(--panel);padding:10px 16px;border-radius:8px;font-weight:600;font-size:13px;max-width:calc(100% - 32px);text-align:center;transition:opacity .2s,transform .2s;z-index:50}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.modal{position:fixed;inset:0;background:rgba(8,10,16,.6);display:grid;place-items:center;z-index:40;
+  padding-block:calc(16px + env(safe-area-inset-top,0px)) calc(16px + env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.sheet{background:var(--panel);border:1px solid var(--line);border-radius:14px;width:min(920px,100%);max-height:100%;overflow:auto;display:flex;flex-direction:column;gap:14px;padding:18px}
+.sheet h2{font-family:var(--f-display);font-size:20px;margin:0}
+.sheet-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.preview{background:var(--stage);border-radius:8px;padding:10px;display:grid;place-items:center}
+.preview img{display:block;max-width:100%;max-height:52vh;box-shadow:0 4px 18px rgba(0,0,0,.18);-webkit-touch-callout:default;-webkit-user-select:auto;user-select:auto}
+.opts{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.opts select{height:34px;border-radius:8px;border:1px solid var(--line);background:var(--field);padding:0 10px}
+.opts .grow{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.sheet .tip{font-size:12px;color:var(--muted);margin:0}
+.size{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+
+.pastezone{display:none;align-items:center;justify-content:center;gap:10px;min-height:68px;padding:10px 14px;border:2px dashed var(--accent);border-radius:12px;
+  background:var(--accent-soft);color:var(--ink);font-weight:600;text-align:center;cursor:text;outline:none;
+  -webkit-user-select:text;user-select:text;-webkit-touch-callout:default;caret-color:transparent}
+.pastezone:empty::before{content:attr(data-ph);pointer-events:none;color:var(--ink)}
+.pastezone:focus,.pastezone.pulse{box-shadow:0 0 0 3px var(--accent);background:var(--accent-soft)}
+@media (pointer:coarse){.pastezone{display:flex}}
+@media (max-width:860px){
+  html,body{height:auto}
+  .app{height:auto;min-height:100%}
+  main{grid-template-columns:1fr}
+  .stage{padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .wrap{flex:none}
+  aside{border-left:0;border-top:1px solid var(--line);overflow:visible;padding-left:max(16px,env(safe-area-inset-left,0px))}
+  .hints{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head><body>
+
+<div class="app">
+  <header>
+    <div class="brand"><h1>Clipboard Collage</h1><span class="ratio">16:9</span></div>
+    <div class="actions">
+      <button class="btn" id="pasteBtn" title="Paste from clipboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>Paste</button>
+      <button class="btn" id="copyBtn" title="Copy collage to clipboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy collage</button>
+      <button class="btn primary" id="exportBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>Export</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="stage">
+      <div class="toolbar">
+        <button class="btn small" id="undoBtn" title="Undo (Ctrl+Z)" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>Undo</button>
+        <button class="btn small" id="redoBtn" title="Redo (Ctrl+Shift+Z)" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>Redo</button>
+        <button class="btn small" id="swapBtn" title="Swap the two images"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4L3 8l4 4"/><path d="M3 8h14"/><path d="M17 20l4-4-4-4"/><path d="M21 16H7"/></svg>Swap images</button>
+      </div>
+      <div class="wrap" id="wrap"><canvas id="cv" width="1920" height="1080" tabindex="0" role="img" aria-label="Collage canvas"></canvas></div>
+      <div class="pastezone" id="pasteZone" contenteditable="true" inputmode="none" role="textbox" spellcheck="false" autocapitalize="off" autocorrect="off" aria-label="Paste box. Touch and hold, then choose Paste." data-ph="Touch and hold here, then tap Paste"></div>
+      <div class="statusbar"><span class="now" id="status">Next paste goes to slot 1</span><span class="dims" id="dims">1920 × 1080 px · 16:9</span></div>
+      <div class="hints">
+        <span><kbd><span data-mod>Ctrl</span>+V</kbd> paste into the highlighted slot</span>
+        <span>Click a slot to choose where the next paste goes</span>
+        <span>Drag to pan · scroll to zoom</span>
+        <span><kbd>Shift</kbd>+drag to swap slots</span>
+        <span><kbd><span data-mod>Ctrl</span>+Z</kbd> undo</span>
+        <span>Drag a gap to resize the split</span>
+        <span><kbd>Del</kbd> clears the slot</span>
+      </div>
+    </section>
+
+    <aside>
+      <div class="note" id="sampleNote">These are sample images. Your first paste clears them.</div>
+
+      <div class="sec">
+        <div class="sec-head"><span class="label">Layout</span><button class="linkbtn" id="resetSplits">Reset split sizes</button></div>
+        <div class="layouts" id="layouts"></div>
+        <div class="lay-name" id="layName"></div>
+      </div>
+
+      <div class="sec">
+        <span class="label">Selected slot</span>
+        <div class="slotbox">
+          <div class="t" id="selTitle">Slot 1</div>
+          <p id="selEmpty">Empty. Press <kbd><span data-mod>Ctrl</span>+V</kbd> to paste into it.</p>
+          <div id="selCtrls" hidden>
+            <div class="row"><label for="zoom">Zoom</label><input type="range" id="zoom" min="1" max="5" step="0.01" value="1"><span class="val" id="zoomV">100%</span></div>
+            <div class="btnrow" style="margin-top:10px"><button class="btn small" id="resetImg">Reset position</button><button class="btn small" id="removeImg">Remove</button></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <span class="label">Image fit</span>
+        <div class="seg" id="fitSeg"><button data-fit="fill" aria-pressed="true">Fill slot</button><button data-fit="fit" aria-pressed="false">Show whole</button></div>
+      </div>
+
+      <div class="sec">
+        <span class="label">Spacing</span>
+        <div class="row"><label for="gap">Gap</label><input type="range" id="gap" min="0" max="60" step="1" value="12"><span class="val" id="gapV">12</span></div>
+        <div class="row"><label for="radius">Corners</label><input type="range" id="radius" min="0" max="48" step="1" value="0"><span class="val" id="radiusV">0</span></div>
+        <label class="check"><input type="checkbox" id="outer" checked> Border around the edge</label>
+      </div>
+
+      <div class="sec">
+        <span class="label">Background</span>
+        <div class="swatches" id="swatches">
+          <label class="colorpick" title="Custom colour"><input type="color" id="bgPick" value="#ffffff" aria-label="Custom background colour"><span>+</span></label>
+        </div>
+      </div>
+
+      <div class="sec">
+        <span class="label">Images</span>
+        <div class="btnrow"><button class="btn small" id="clearAll">Clear all images</button></div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<div class="modal" id="modal" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="exTitle">
+    <div class="sheet-head"><h2 id="exTitle">Export collage</h2><button class="btn small" id="closeModal">Close</button></div>
+    <div class="preview"><img id="exImg" alt="Rendered collage"></div>
+    <div class="opts">
+      <select id="res" aria-label="Output size">
+        <option value="1280">1280 × 720 (HD)</option>
+        <option value="1920">1920 × 1080 (Full HD)</option>
+        <option value="2560">2560 × 1440 (QHD)</option>
+        <option value="3840">3840 × 2160 (4K)</option>
+      </select>
+      <select id="fmt" aria-label="File format">
+        <option value="png">PNG</option>
+        <option value="jpeg">JPG</option>
+      </select>
+      <span class="size" id="exSize"></span>
+      <div class="grow"><button class="btn" id="exShare" hidden>Share or save</button><button class="btn" id="exCopy">Copy image</button><button class="btn primary" id="exDownload">Download</button></div>
+    </div>
+    <p class="tip" id="exTip">If Copy or Download does nothing in this window, right-click the image above and choose Copy image or Save image as.</p>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const BW = 1920, BH = 1080;
+const isMac = /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent);
+const MOD = isMac ? '⌘' : 'Ctrl';
+document.querySelectorAll('[data-mod]').forEach(el => el.textContent = MOD);
+const coarse = matchMedia('(pointer:coarse)');
+/* ---- Android app bridge (only present inside the installed app) ---- */
+const CAP = window.Capacitor;
+const NATIVE = !!(CAP && CAP.isNativePlatform && CAP.isNativePlatform());
+const hasNative = () => NATIVE && !!((CAP.Plugins && CAP.Plugins.CollageNative) || CAP.nativePromise);
+function callNative(method, opts) {
+  if (!NATIVE) return Promise.reject(new Error('not native'));
+  const pl = CAP.Plugins && CAP.Plugins.CollageNative;
+  if (pl && pl[method]) return pl[method](opts || {});
+  if (CAP.nativePromise) return CAP.nativePromise('CollageNative', method, opts || {});
+  return Promise.reject(new Error('native plugin missing'));
+}
+const blobToB64 = blob => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] || ''); r.onerror = () => rej(new Error('read failed')); r.readAsDataURL(blob); });
+function b64ToBlob(b64, mime) { const bin = atob(b64), a = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); return new Blob([a], { type: mime || 'image/png' }); }
+const msgOf = e => (e && (e.message || e.errorMessage || e.name)) || 'error';
+
+/* ---------- layouts: rows separated by "|", optional "height:" prefix, column weights by space ---------- */
+const SPEC = [
+  ['r2','Stacked 50/50','1|1'],
+  ['r2a','Stacked 60/40','3:1|2:1'],
+  ['r2b','Stacked 40/60','2:1|3:1'],
+  ['c2','Side by side 50/50','1 1'],
+  ['c2a','Side by side 60/40','3 2'],
+  ['c2b','Side by side 40/60','2 3'],
+];
+const parse = spec => spec.split('|').map(r => {
+  let h = 1, c = r;
+  if (r.includes(':')) { const p = r.split(':'); h = +p[0]; c = p[1]; }
+  return { h, cols: c.trim().split(/\s+/).map(Number) };
+});
+const LAYOUTS = SPEC.map(([id, name, spec]) => ({ id, name, rows: parse(spec) }));
+const byId = id => LAYOUTS.find(l => l.id === id) || LAYOUTS[0];
+const cloneRows = rows => rows.map(r => ({ h: r.h, cols: r.cols.slice() }));
+const countOf = rows => rows.reduce((a, r) => a + r.cols.length, 0);
+
+/* ---------- state ---------- */
+const S = { layoutId: 'r2', rows: null, gap: 12, outer: true, radius: 0, bg: '#FFFFFF', fit: 'fill', res: '1920', fmt: 'png', selected: 0 };
+let saved = {};
+try { saved = JSON.parse(localStorage.getItem('clipcollage-v1') || '{}') || {}; } catch (e) { saved = {}; }
+for (const k of ['layoutId','gap','outer','radius','bg','fit','res','fmt']) if (saved[k] !== undefined) S[k] = saved[k];
+{
+  const base = byId(S.layoutId); S.layoutId = base.id;
+  const ok = Array.isArray(saved.rows) && saved.rows.length === base.rows.length &&
+    saved.rows.every((r, i) => r && Array.isArray(r.cols) && r.cols.length === base.rows[i].cols.length && r.h > 0);
+  S.rows = ok ? cloneRows(saved.rows) : cloneRows(base.rows);
+}
+function save() {
+  try { localStorage.setItem('clipcollage-v1', JSON.stringify({ layoutId: S.layoutId, rows: S.rows, gap: S.gap, outer: S.outer, radius: S.radius, bg: S.bg, fit: S.fit, res: S.res, fmt: S.fmt })); } catch (e) {}
+}
+
+let images = [];           // per slot index; kept when switching layouts
+const slotCount = () => countOf(S.rows);
+const isFree = i => !images[i] || images[i].sample;
+const hasSamples = () => images.some(im => im && im.sample);
+
+/* ---------- undo / redo ---------- */
+const undoStack = [], redoStack = [];
+let group = null, groupTimer = 0;
+function snap() {
+  return { images: images.map(im => im ? { ...im } : null), rows: cloneRows(S.rows), layoutId: S.layoutId, gap: S.gap, outer: S.outer, radius: S.radius, bg: S.bg, fit: S.fit, selected: S.selected };
+}
+function record(key, pre) {           // call just before a change; a key groups a continuous gesture into one step
+  if (key && group === key) return;
+  undoStack.push(pre || snap()); if (undoStack.length > 60) undoStack.shift();
+  redoStack.length = 0; group = key || null; histUI();
+}
+const endGroup = () => { group = null; };
+function restore(st) {
+  images = st.images.map(im => im ? { ...im } : null);
+  S.rows = cloneRows(st.rows); S.layoutId = st.layoutId; S.gap = st.gap; S.outer = st.outer; S.radius = st.radius; S.bg = st.bg; S.fit = st.fit; S.selected = st.selected;
+  group = null; save(); ui(); schedule();
+}
+function undo() { if (!undoStack.length) return; redoStack.push(snap()); restore(undoStack.pop()); toast('Undone'); }
+function redo() { if (!redoStack.length) return; undoStack.push(snap()); restore(redoStack.pop()); toast('Redone'); }
+function histUI() { $('#undoBtn').disabled = !undoStack.length; $('#redoBtn').disabled = !redoStack.length; }
+function swapSlots() {
+  if (slotCount() < 2) return;
+  if (!images[0] && !images[1]) { toast('Paste images first, then swap them.'); return; }
+  record();
+  const t = images[0] || null; images[0] = images[1] || null; images[1] = t;
+  toast('Swapped the two images'); ui(); schedule();
+}
+$('#undoBtn').addEventListener('click', undo);
+$('#redoBtn').addEventListener('click', redo);
+$('#swapBtn').addEventListener('click', swapSlots);
+
+/* ---------- sample images so the first view shows the tool working ---------- */
+function makeSample(i) {
+  const c = document.createElement('canvas'); c.width = 1600; c.height = 900;
+  const x = c.getContext('2d');
+  const hues = [[20, 345], [200, 228], [152, 96], [262, 300], [38, 12], [188, 160]];
+  const [h1, h2] = hues[i % hues.length];
+  const g = x.createLinearGradient(0, 0, 0, 900);
+  g.addColorStop(0, `hsl(${h1},62%,74%)`); g.addColorStop(1, `hsl(${h2},44%,36%)`);
+  x.fillStyle = g; x.fillRect(0, 0, 1600, 900);
+  x.fillStyle = `hsla(${h1},90%,93%,0.85)`; x.beginPath(); x.arc(300 + (i * 260) % 1000, 290, 105, 0, Math.PI * 2); x.fill();
+  for (let l = 0; l < 3; l++) {
+    x.fillStyle = `hsla(${h2},38%,${30 - l * 8}%,${0.5 + l * 0.18})`;
+    x.beginPath(); x.moveTo(0, 900);
+    for (let px = 0; px <= 1600; px += 32) x.lineTo(px, 560 + l * 95 + Math.sin(px / (170 + l * 70) + i * 1.7 + l) * 58);
+    x.lineTo(1600, 900); x.closePath(); x.fill();
+  }
+  x.fillStyle = 'rgba(255,255,255,.92)'; x.font = '600 46px Manrope, system-ui, sans-serif';
+  x.fillText('Sample ' + (i + 1), 60, 836);
+  return { src: c, w: 1600, h: 900, zoom: 1, cx: .5, cy: .5, sample: true };
+}
+function loadSamples() { images = []; for (let i = 0; i < slotCount(); i++) images[i] = makeSample(i); }
+
+/* ---------- geometry ---------- */
+function geometry(W, H, rows = S.rows, gapUnits = S.gap, outer = S.outer) {
+  const k = W / BW, g = gapUnits * k, m = outer ? g : 0;
+  const sumH = rows.reduce((a, r) => a + r.h, 0);
+  const availH = H - 2 * m - g * (rows.length - 1);
+  const slots = [], rowDiv = [], colDiv = [], rowH = [], colW = [];
+  let y = m, idx = 0;
+  rows.forEach((r, ri) => {
+    const rh = availH * r.h / sumH; rowH.push(rh);
+    const sumW = r.cols.reduce((a, b) => a + b, 0);
+    const availW = W - 2 * m - g * (r.cols.length - 1);
+    const widths = []; let x = m;
+    r.cols.forEach((c, ci) => {
+      const cw = availW * c / sumW; widths.push(cw);
+      slots.push({ x, y, w: cw, h: rh, i: idx++, ri, ci });
+      x += cw;
+      if (ci < r.cols.length - 1) { colDiv.push({ type: 'col', ri, ci, x: x + g / 2, y, h: rh }); x += g; }
+    });
+    colW.push(widths);
+    y += rh;
+    if (ri < rows.length - 1) { rowDiv.push({ type: 'row', ri, y: y + g / 2 }); y += g; }
+  });
+  return { slots, rowDiv, colDiv, rowH, colW, k, g, m, W, H };
+}
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+function placement(im, s) {
+  const base = S.fit === 'fill' ? Math.max(s.w / im.w, s.h / im.h) : Math.min(s.w / im.w, s.h / im.h);
+  const sc = base * im.zoom;
+  const hx = s.w / (2 * sc * im.w), hy = s.h / (2 * sc * im.h);
+  im.cx = hx >= .5 ? .5 : clamp(im.cx, hx, 1 - hx);
+  im.cy = hy >= .5 ? .5 : clamp(im.cy, hy, 1 - hy);
+  return { sc, base, x: s.x + s.w / 2 - im.cx * im.w * sc, y: s.y + s.h / 2 - im.cy * im.h * sc, w: im.w * sc, h: im.h * sc };
+}
+function rr(c, x, y, w, h, r) {
+  r = Math.max(0, Math.min(r, w / 2, h / 2));
+  c.beginPath(); c.moveTo(x + r, y);
+  c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
+}
+function isDarkHex(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return false;
+  const n = parseInt(m[1], 16), r = n >> 16 & 255, g = n >> 8 & 255, b = n & 255;
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 < 0.5;
+}
+
+/* ---------- rendering ---------- */
+function render(c, W, H, preview) {
+  const G = geometry(W, H);
+  c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
+  c.fillStyle = S.bg; c.fillRect(0, 0, W, H);
+  const r = S.radius * G.k;
+  for (const s of G.slots) {
+    const im = images[s.i];
+    if (!im) continue;
+    const p = placement(im, s);
+    c.save(); rr(c, s.x, s.y, s.w, s.h, r); c.clip();
+    c.drawImage(im.src, p.x, p.y, p.w, p.h);
+    c.restore();
+  }
+  return G;
+}
+
+const cv = $('#cv'), ctx = cv.getContext('2d');
+let tok = { accent: '#2B54E0' };
+function readTokens() { const v = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim(); if (v) tok.accent = v; schedule(); }
+let hover = null, drag = null, raf = 0;
+const schedule = () => { if (!raf) raf = requestAnimationFrame(draw); };
+
+function pill(c, x, y, text, bgc, fg) {
+  c.font = '700 22px Manrope, system-ui, sans-serif';
+  const w = c.measureText(text).width + 26;
+  c.fillStyle = bgc; rr(c, x, y, w, 36, 18); c.fill();
+  c.fillStyle = fg; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(text, x + 13, y + 19);
+}
+function draw() {
+  raf = 0;
+  const G = render(ctx, BW, BH, true);
+  const dark = isDarkHex(S.bg), r = S.radius * G.k;
+  const ph = dark ? ['rgba(255,255,255,.05)', 'rgba(255,255,255,.28)', 'rgba(255,255,255,.66)'] : ['rgba(15,25,45,.045)', 'rgba(15,25,45,.24)', 'rgba(15,25,45,.56)'];
+  for (const s of G.slots) {
+    if (images[s.i]) continue;
+    ctx.save(); rr(ctx, s.x, s.y, s.w, s.h, r); ctx.fillStyle = ph[0]; ctx.fill();
+    ctx.setLineDash([14, 10]); ctx.lineWidth = 2; ctx.strokeStyle = ph[1];
+    rr(ctx, s.x + 1, s.y + 1, s.w - 2, s.h - 2, Math.max(0, r - 1)); ctx.stroke(); ctx.restore();
+    const fs = clamp(Math.min(s.h * .12, s.w * .075), 16, 42);
+    const cx = s.x + s.w / 2, cy = s.y + s.h / 2;
+    ctx.fillStyle = ph[2]; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `600 ${fs}px Manrope, system-ui, sans-serif`; ctx.fillText('Paste image', cx, cy - fs * .4);
+    ctx.font = `500 ${fs * .55}px "JetBrains Mono", ui-monospace, monospace`; ctx.fillText((coarse.matches ? '' : MOD + '+V · ') + 'slot ' + (s.i + 1), cx, cy + fs * .7);
+  }
+  // swap target
+  if (drag && drag.type === 'swap' && drag.to !== drag.from) {
+    const t = G.slots.find(s => s.i === drag.to);
+    if (t) { ctx.save(); ctx.fillStyle = 'rgba(43,84,224,.18)'; rr(ctx, t.x, t.y, t.w, t.h, r); ctx.fill();
+      ctx.setLineDash([18, 10]); ctx.lineWidth = 5; ctx.strokeStyle = tok.accent; rr(ctx, t.x + 3, t.y + 3, t.w - 6, t.h - 6, Math.max(0, r - 3)); ctx.stroke(); ctx.restore();
+      pill(ctx, t.x + 14, t.y + 14, 'Swap here', tok.accent, '#fff'); }
+  }
+  // selection
+  const sel = G.slots.find(s => s.i === S.selected);
+  if (sel) {
+    ctx.save(); ctx.lineWidth = 6; ctx.strokeStyle = tok.accent;
+    rr(ctx, sel.x + 3, sel.y + 3, sel.w - 6, sel.h - 6, Math.max(0, r - 3)); ctx.stroke(); ctx.restore();
+    pill(ctx, sel.x + 14, sel.y + 14, isFree(sel.i) ? 'Next paste' : 'Selected', tok.accent, '#fff');
+  }
+  // divider highlight
+  const d = drag && (drag.type === 'row' || drag.type === 'col') ? drag : hover;
+  if (d && (d.type === 'row' || d.type === 'col')) {
+    ctx.save(); ctx.strokeStyle = tok.accent; ctx.lineWidth = 4; ctx.setLineDash([]);
+    let mx, my, label = '';
+    if (d.type === 'row') {
+      const rd = G.rowDiv.find(q => q.ri === d.ri); if (rd) {
+        ctx.beginPath(); ctx.moveTo(G.m, rd.y); ctx.lineTo(BW - G.m, rd.y); ctx.stroke(); mx = BW / 2; my = rd.y;
+        const a = G.rowH[d.ri], b = G.rowH[d.ri + 1]; label = `${Math.round(a / (a + b) * 100)}% / ${Math.round(b / (a + b) * 100)}%`;
+      }
+    } else {
+      const cd = G.colDiv.find(q => q.ri === d.ri && q.ci === d.ci); if (cd) {
+        ctx.beginPath(); ctx.moveTo(cd.x, cd.y); ctx.lineTo(cd.x, cd.y + cd.h); ctx.stroke(); mx = cd.x; my = cd.y + cd.h / 2;
+        const w = G.colW[d.ri], a = w[d.ci], b = w[d.ci + 1]; label = `${Math.round(a / (a + b) * 100)}% / ${Math.round(b / (a + b) * 100)}%`;
+      }
+    }
+    if (mx !== undefined) {
+      ctx.fillStyle = tok.accent; ctx.beginPath(); ctx.arc(mx, my, 11, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(mx, my, 4, 0, Math.PI * 2); ctx.fill();
+      if (drag) { ctx.font = '700 22px Manrope, system-ui, sans-serif'; const tw = ctx.measureText(label).width + 26;
+        pill(ctx, clamp(mx + 20, 8, BW - tw - 8), clamp(my - 52, 8, BH - 44), label, tok.accent, '#fff'); }
+    }
+    ctx.restore();
+  }
+}
+
+/* ---------- canvas sizing ---------- */
+const wrap = $('#wrap'), narrow = matchMedia('(max-width:860px)');
+function fitCanvas() {
+  const r = wrap.getBoundingClientRect();
+  let w = r.width;
+  if (!narrow.matches) w = Math.min(r.width, r.height * 16 / 9);
+  w = Math.max(160, Math.floor(w));
+  cv.style.width = w + 'px'; cv.style.height = Math.round(w * 9 / 16) + 'px';
+}
+new ResizeObserver(fitCanvas).observe(wrap);
+narrow.addEventListener('change', fitCanvas);
+
+/* ---------- pointer interaction ---------- */
+function pt(e) { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * BW / r.width, y: (e.clientY - r.top) * BH / r.height, f: BW / r.width }; }
+function hitDivider(p, G) {
+  const tol = Math.max(G.g / 2, 12 * p.f);
+  for (const d of G.colDiv) if (Math.abs(p.x - d.x) <= tol && p.y >= d.y && p.y <= d.y + d.h) return d;
+  for (const d of G.rowDiv) if (Math.abs(p.y - d.y) <= tol && p.x >= G.m && p.x <= BW - G.m) return d;
+  return null;
+}
+const hitSlot = (p, G) => G.slots.find(s => p.x >= s.x && p.x <= s.x + s.w && p.y >= s.y && p.y <= s.y + s.h) || null;
+
+cv.addEventListener('pointerdown', e => {
+  if (e.button !== 0) return;
+  const p = pt(e), G = geometry(BW, BH);
+  const d = hitDivider(p, G);
+  if (d) {
+    if (d.type === 'row') drag = { type: 'row', ri: d.ri, start: p.y, a: G.rowH[d.ri], b: G.rowH[d.ri + 1], wa: S.rows[d.ri].h, wb: S.rows[d.ri + 1].h };
+    else { const w = G.colW[d.ri]; drag = { type: 'col', ri: d.ri, ci: d.ci, start: p.x, a: w[d.ci], b: w[d.ci + 1], wa: S.rows[d.ri].cols[d.ci], wb: S.rows[d.ri].cols[d.ci + 1] }; }
+    cv.setPointerCapture(e.pointerId); schedule(); return;
+  }
+  const s = hitSlot(p, G); if (!s) return;
+  S.selected = s.i; cv.focus({ preventScroll: true });
+  const im = images[s.i];
+  if (im && e.shiftKey) drag = { type: 'swap', from: s.i, to: s.i };
+  else if (im) drag = { type: 'pan', i: s.i, last: p, slot: s };
+  if (drag) cv.setPointerCapture(e.pointerId);
+  ui(); schedule();
+});
+cv.addEventListener('pointermove', e => {
+  const p = pt(e), G = geometry(BW, BH);
+  if (drag) {
+    if (drag.type === 'row' || drag.type === 'col') {
+      const delta = (drag.type === 'row' ? p.y : p.x) - drag.start;
+      if (delta) record('split');
+      const min = 60, tot = drag.a + drag.b, a2 = clamp(drag.a + delta, min, tot - min), wt = drag.wa + drag.wb;
+      if (drag.type === 'row') { S.rows[drag.ri].h = wt * a2 / tot; S.rows[drag.ri + 1].h = wt - S.rows[drag.ri].h; }
+      else { const c = S.rows[drag.ri].cols; c[drag.ci] = wt * a2 / tot; c[drag.ci + 1] = wt - c[drag.ci]; }
+    } else if (drag.type === 'pan') {
+      if (Math.abs(p.x - drag.last.x) + Math.abs(p.y - drag.last.y) > 0.5) record('pan');
+      const im = images[drag.i], s = G.slots.find(q => q.i === drag.i);
+      if (im && s) { const pl = placement(im, s); im.cx -= (p.x - drag.last.x) / (im.w * pl.sc); im.cy -= (p.y - drag.last.y) / (im.h * pl.sc); }
+      drag.last = p;
+    } else if (drag.type === 'swap') {
+      const s = hitSlot(p, G); drag.to = s ? s.i : drag.from;
+    }
+    schedule(); return;
+  }
+  const d = hitDivider(p, G);
+  const nh = d ? { type: d.type, ri: d.ri, ci: d.ci } : null;
+  if (JSON.stringify(nh) !== JSON.stringify(hover)) { hover = nh; schedule(); }
+  if (d) cv.style.cursor = d.type === 'row' ? 'ns-resize' : 'ew-resize';
+  else { const s = hitSlot(p, G); cv.style.cursor = s && images[s.i] ? (e.shiftKey ? 'move' : 'grab') : (s ? 'pointer' : 'default'); }
+});
+function endDrag() {
+  if (!drag) return;
+  if (drag.type === 'swap' && drag.to !== drag.from) {
+    record(); const a = drag.from, b = drag.to; const t = images[a]; images[a] = images[b] || null; images[b] = t;
+    S.selected = b; toast(`Swapped slot ${a + 1} and slot ${b + 1}`);
+  }
+  if (drag.type === 'row' || drag.type === 'col') save();
+  endGroup(); drag = null; ui(); schedule();
+}
+cv.addEventListener('pointerup', endDrag);
+cv.addEventListener('pointercancel', endDrag);
+cv.addEventListener('pointerleave', () => { if (!drag && hover) { hover = null; schedule(); } });
+cv.addEventListener('wheel', e => {
+  const p = pt(e), G = geometry(BW, BH), s = hitSlot(p, G);
+  if (!s || !images[s.i]) return;
+  e.preventDefault();
+  const im = images[s.i], pl = placement(im, s);
+  const ix = (p.x - pl.x) / (im.w * pl.sc), iy = (p.y - pl.y) / (im.h * pl.sc);
+  record('wheel'); clearTimeout(groupTimer); groupTimer = setTimeout(endGroup, 500);
+  im.zoom = clamp(im.zoom * Math.exp(-e.deltaY * 0.0015), 1, 5);
+  const sc2 = pl.base * im.zoom;
+  im.cx = ix - (p.x - (s.x + s.w / 2)) / (sc2 * im.w);
+  im.cy = iy - (p.y - (s.y + s.h / 2)) / (sc2 * im.h);
+  S.selected = s.i; ui(); schedule();
+}, { passive: false });
+
+/* ---------- pasting ---------- */
+async function loadBlob(blob) {
+  try { const b = await createImageBitmap(blob); return { src: b, w: b.width, h: b.height }; }
+  catch (e) {
+    return new Promise((res, rej) => {
+      const img = new Image(), u = URL.createObjectURL(blob);
+      img.onload = () => res({ src: img, w: img.naturalWidth, h: img.naturalHeight });
+      img.onerror = () => rej(new Error('decode')); img.src = u;
+    });
+  }
+}
+function firstFree(from = 0) {
+  const n = slotCount();
+  for (let k = 0; k < n; k++) { const i = (from + k) % n; if (isFree(i)) return i; }
+  return null;
+}
+async function addBlobs(blobs) {
+  if (!blobs.length) return;
+  const pre = snap();
+  if (hasSamples()) images = images.map(im => (im && !im.sample) ? im : null);
+  let placed = 0;
+  for (const b of blobs) {
+    let t = (S.selected != null && S.selected < slotCount()) ? S.selected : firstFree();
+    if (t == null) { toast('Every slot has an image. Click a slot to replace it.'); break; }
+    let d;
+    try { d = await loadBlob(b); } catch (e) { toast('That clipboard item could not be read as an image.'); continue; }
+    images[t] = { ...d, zoom: 1, cx: .5, cy: .5 };
+    placed++;
+    S.selected = firstFree(t + 1);
+  }
+  if (placed) { record(null, pre); toast(placed > 1 ? `Pasted ${placed} images` : 'Image pasted'); }
+  ui(); schedule();
+}
+function dataUrlToBlob(u) {
+  const m = /^data:([^;,]+)(;base64)?,(.*)$/s.exec(u); if (!m) return null;
+  try {
+    const bin = m[2] ? atob(decodeURIComponent(m[3])) : decodeURIComponent(m[3]);
+    const a = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i);
+    return new Blob([a], { type: m[1] });
+  } catch (e) { return null; }
+}
+function pasteFallback() {
+  if (coarse.matches) {
+    zone.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); zone.focus({ preventScroll: true });
+    zone.classList.add('pulse'); setTimeout(() => zone.classList.remove('pulse'), 1800);
+    toast('Touch and hold the paste box, then tap Paste.');
+  } else toast(`The browser blocked the Paste button here. Press ${MOD}+V instead.`);
+}
+document.addEventListener('paste', e => {
+  const dt = e.clipboardData; if (!dt) return;
+  const blobs = [];
+  for (const it of dt.items || []) if (it.kind === 'file' && it.type.startsWith('image/')) { const f = it.getAsFile(); if (f) blobs.push(f); }
+  if (!blobs.length && dt.files) for (const f of dt.files) if (f.type.startsWith('image/')) blobs.push(f);
+  if (!blobs.length) {
+    const html = dt.getData && dt.getData('text/html');
+    if (html) { const re = /<img[^>]+src=["'](data:image\/[^"']+)["']/gi; let m; while ((m = re.exec(html))) { const b = dataUrlToBlob(m[1]); if (b) blobs.push(b); } }
+  }
+  e.preventDefault();
+  if (!blobs.length) { toast('No image on the clipboard. Copy an image first, then paste.'); return; }
+  addBlobs(blobs);
+});
+$('#pasteBtn').addEventListener('click', async () => {
+  if (hasNative()) {
+    try { const r = await callNative('readImage'); addBlobs([b64ToBlob(r.data, r.mime)]); }
+    catch (e) { toast('No image on the clipboard. Copy an image first, then tap Paste.'); }
+    return;
+  }
+  try {
+    if (!navigator.clipboard || !navigator.clipboard.read) throw new Error('unsupported');
+    const items = await navigator.clipboard.read(); const blobs = [];
+    for (const it of items) { const ty = it.types.find(t => t.startsWith('image/')); if (ty) blobs.push(await it.getType(ty)); }
+    if (!blobs.length) { toast('No image on the clipboard. Copy an image first.'); return; }
+    addBlobs(blobs);
+  } catch (e) { pasteFallback(); }
+});
+const zone = $('#pasteZone');
+['beforeinput','cut','drop','dragover'].forEach(t => zone.addEventListener(t, e => e.preventDefault()));
+zone.addEventListener('keydown', e => { if (!(e.ctrlKey || e.metaKey)) e.preventDefault(); });
+if (hasNative()) { zone.style.display = 'none'; $('#selEmpty').textContent = 'Empty. Tap Paste at the top to add the image you copied.'; }
+else if (coarse.matches) $('#selEmpty').innerHTML = 'Empty. Touch and hold the paste box under the canvas, then tap Paste.';
+// drag and drop also works, as a convenience
+cv.addEventListener('dragover', e => { e.preventDefault(); });
+cv.addEventListener('drop', e => {
+  e.preventDefault();
+  const files = [...(e.dataTransfer?.files || [])].filter(f => f.type.startsWith('image/'));
+  if (!files.length) return;
+  const s = hitSlot(pt(e), geometry(BW, BH)); if (s) S.selected = s.i;
+  addBlobs(files);
+});
+
+/* ---------- export ---------- */
+function exportBlob(fmt = 'png', width = +S.res) {
+  const W = width, H = Math.round(W * 9 / 16);
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  render(c.getContext('2d'), W, H, false);
+  return new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error('blob')), fmt === 'jpeg' ? 'image/jpeg' : 'image/png', 0.93));
+}
+function legacyCopyImage(blob) {
+  return new Promise(res => {
+    const r = new FileReader();
+    r.onerror = () => res(false);
+    r.onload = () => {
+      const box = document.createElement('div');
+      box.contentEditable = 'true';
+      box.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;overflow:hidden;pointer-events:none';
+      const img = document.createElement('img'); img.src = r.result; box.appendChild(img); document.body.appendChild(box);
+      let ok = false;
+      try {
+        const sel = getSelection(), range = document.createRange(); range.selectNode(img);
+        sel.removeAllRanges(); sel.addRange(range);
+        ok = document.execCommand('copy'); sel.removeAllRanges();
+      } catch (e) { ok = false; }
+      box.remove(); res(ok);
+    };
+    r.readAsDataURL(blob);
+  });
+}
+async function copyCollage(width) {
+  const errName = e => (e && (e.name || e.message)) || 'unknown';
+  const done = () => toast('Collage copied. Paste it anywhere.');
+  if (hasNative()) {
+    try { const nb = await exportBlob('png', width); await callNative('copyImage', { data: await blobToB64(nb), name: 'collage.png' }); return done(); }
+    catch (e) { toast('Copy failed (' + msgOf(e) + '). Use Share or save instead.'); if ($('#modal').hidden) openModal(); return; }
+  }
+  const p = exportBlob('png', width);
+  let err = null, blob = null;
+  // 1. standard async clipboard, handing the browser a promise (works in Chrome and Safari)
+  try {
+    if (!window.ClipboardItem || !navigator.clipboard || !navigator.clipboard.write) throw new Error('Clipboard API not available');
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': p })]);
+    return done();
+  } catch (e) { err = e; }
+  // 2. same API, handing it the finished image (some Android builds reject the promise form)
+  try {
+    blob = await p;
+    if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      return done();
+    }
+  } catch (e) { err = e; }
+  // 3. older copy command on a selected image
+  if (blob && await legacyCopyImage(blob)) { toast('Copied. If it will not paste as an image, use Share or save.'); return; }
+  // 4. give up gracefully: open Export, where the image can be shared or held to save
+  if (coarse.matches) { if ($('#modal').hidden) openModal(); toast(`Copy failed (${errName(err)}). Use Share or save, or touch and hold the image.`); }
+  else toast(`Copy failed (${errName(err)}). Open Export and right-click the image to copy it.`);
+}
+function fileName(fmt) {
+  const d = new Date(), z = n => String(n).padStart(2, '0');
+  return `collage-${d.getFullYear()}${z(d.getMonth() + 1)}${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}.${fmt === 'jpeg' ? 'jpg' : 'png'}`;
+}
+let exURL = null, exBlob = null;
+async function refreshExport() {
+  const fmt = $('#fmt').value, w = +$('#res').value;
+  exBlob = await exportBlob(fmt, w);
+  if (exURL) URL.revokeObjectURL(exURL);
+  exURL = URL.createObjectURL(exBlob); $('#exImg').src = exURL;
+  $('#exSize').textContent = `${w} × ${Math.round(w * 9 / 16)} · ${(exBlob.size / 1048576).toFixed(2)} MB`;
+}
+const canShare = () => { if (hasNative()) return true; try { return !!(navigator.share && navigator.canShare && navigator.canShare({ files: [new File([new Blob(['x'])], 'a.png', { type: 'image/png' })] })); } catch (e) { return false; } };
+async function shareCollage() {
+  if (!exBlob) return;
+  if (hasNative()) {
+    try { await callNative('shareImage', { data: await blobToB64(exBlob), name: fileName($('#fmt').value), mime: exBlob.type }); }
+    catch (e) { toast('Sharing failed (' + msgOf(e) + ').'); }
+    return;
+  }
+  const f = new File([exBlob], fileName($('#fmt').value), { type: exBlob.type });
+  try { await navigator.share({ files: [f], title: 'Collage' }); }
+  catch (e) { if (!e || e.name !== 'AbortError') toast('Sharing is blocked here. Touch and hold the image to save or copy it.'); }
+}
+function openModal() {
+  $('#res').value = S.res; $('#fmt').value = S.fmt; $('#modal').hidden = false; refreshExport(); $('#closeModal').focus();
+  $('#exShare').hidden = !canShare();
+  $('#exTip').textContent = hasNative()
+    ? 'Download saves the collage to your Photos, in the Clipboard Collage album. Share sends it to other apps.'
+    : coarse.matches
+    ? 'Touch and hold the image above, then choose Copy image or Save image. Share or save sends it to Photos, WhatsApp and other apps.'
+    : 'If Copy or Download does nothing in this window, right-click the image above and choose Copy image or Save image as.';
+}
+function closeModal() { $('#modal').hidden = true; cv.focus({ preventScroll: true }); }
+$('#exportBtn').addEventListener('click', openModal);
+$('#closeModal').addEventListener('click', closeModal);
+$('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
+$('#res').addEventListener('change', () => { S.res = $('#res').value; save(); refreshExport(); });
+$('#fmt').addEventListener('change', () => { S.fmt = $('#fmt').value; save(); refreshExport(); });
+$('#exCopy').addEventListener('click', () => copyCollage(+$('#res').value));
+$('#exShare').addEventListener('click', shareCollage);
+async function saveNative() {
+  if (!exBlob) return;
+  try { await callNative('saveToGallery', { data: await blobToB64(exBlob), name: fileName($('#fmt').value), mime: exBlob.type }); toast('Saved to Photos, in the Clipboard Collage album.'); }
+  catch (e) { toast('Could not save (' + msgOf(e) + '). Try Share or save.'); }
+}
+$('#exDownload').addEventListener('click', () => {
+  if (hasNative()) { saveNative(); return; }
+  if (!exURL) return;
+  const a = document.createElement('a'); a.href = exURL; a.download = fileName($('#fmt').value);
+  document.body.appendChild(a); a.click(); a.remove();
+  toast(coarse.matches ? 'If the download does not start, touch and hold the image to save it.' : 'Download started. If nothing appears, right-click the image and choose Save image as.');
+});
+$('#copyBtn').addEventListener('click', () => copyCollage());
+
+/* ---------- keyboard ---------- */
+document.addEventListener('keydown', e => {
+  const inField = (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement?.tagName || '') && document.activeElement.type !== 'range') || document.activeElement?.id === 'pasteZone';
+  if (e.key === 'Escape') { if (!$('#modal').hidden) closeModal(); else { S.selected = null; ui(); schedule(); } return; }
+  if (inField || !$('#modal').hidden && !(e.ctrlKey || e.metaKey)) return;
+  if ((e.ctrlKey || e.metaKey) && !e.altKey && $('#modal').hidden) {
+    const k = e.key.toLowerCase();
+    if (k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return; }
+    if ((k === 'z' && e.shiftKey) || k === 'y') { e.preventDefault(); redo(); return; }
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c' && !String(getSelection())) { e.preventDefault(); copyCollage(); return; }
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if ((e.key === 'Delete' || e.key === 'Backspace') && S.selected != null && images[S.selected]) {
+    e.preventDefault(); record(); images[S.selected] = null; ui(); schedule(); return;
+  }
+  if (/^[1-9]$/.test(e.key) && +e.key <= slotCount() && document.activeElement?.type !== 'range') { S.selected = +e.key - 1; ui(); schedule(); }
+});
+
+/* ---------- side panel ---------- */
+const layWrap = $('#layouts');
+function thumb(rows) {
+  const G = geometry(64, 36, rows, 2 * BW / 64, true);
+  return `<svg viewBox="0 0 64 36" aria-hidden="true">${G.slots.map(s => `<rect x="${s.x.toFixed(2)}" y="${s.y.toFixed(2)}" width="${s.w.toFixed(2)}" height="${s.h.toFixed(2)}" rx="1"/>`).join('')}</svg>`;
+}
+LAYOUTS.forEach(L => {
+  const b = document.createElement('button'); b.className = 'lay'; b.dataset.id = L.id;
+  b.title = `${L.name} · ${countOf(L.rows)} images`; b.setAttribute('aria-label', b.title);
+  b.innerHTML = thumb(L.rows);
+  b.addEventListener('click', () => {
+    if (S.layoutId === L.id) return;
+    record();
+    S.layoutId = L.id; S.rows = cloneRows(L.rows);
+    if (hasSamples()) loadSamples();
+    if (S.selected == null || S.selected >= slotCount()) S.selected = firstFree();
+    save(); ui(); schedule();
+  });
+  layWrap.appendChild(b);
+});
+$('#resetSplits').addEventListener('click', () => { record(); S.rows = cloneRows(byId(S.layoutId).rows); save(); schedule(); toast('Split sizes reset'); });
+
+const SW = ['#FFFFFF', '#F1EEE8', '#C9CED8', '#1B1E25', '#000000', '#1E2A4A'];
+const swWrap = $('#swatches'), pick = $('#bgPick');
+SW.forEach(c => {
+  const b = document.createElement('button'); b.className = 'sw'; b.style.background = c; b.dataset.c = c; b.title = c; b.setAttribute('aria-label', 'Background ' + c);
+  b.addEventListener('click', () => { record(); S.bg = c; save(); ui(); schedule(); });
+  swWrap.insertBefore(b, swWrap.lastElementChild);
+});
+pick.addEventListener('change', endGroup);
+pick.addEventListener('input', () => { record('bg'); S.bg = pick.value.toUpperCase(); save(); ui(); schedule(); });
+
+function bindRange(id, key) {
+  const el = $('#' + id);
+  el.addEventListener('input', () => { record('range-' + key); S[key] = +el.value; $('#' + id + 'V').textContent = el.value; schedule(); });
+  el.addEventListener('change', () => { save(); endGroup(); });
+}
+bindRange('gap', 'gap'); bindRange('radius', 'radius');
+$('#outer').addEventListener('change', e => { record(); S.outer = e.target.checked; save(); schedule(); });
+$('#fitSeg').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  record(); S.fit = b.dataset.fit; images.forEach(im => { if (im) { im.zoom = 1; im.cx = im.cy = .5; } });
+  save(); ui(); schedule();
+});
+$('#zoom').addEventListener('input', e => { const im = images[S.selected]; if (!im) return; record('zoom-slider'); im.zoom = +e.target.value; $('#zoomV').textContent = Math.round(im.zoom * 100) + '%'; schedule(); });
+$('#zoom').addEventListener('change', endGroup);
+$('#resetImg').addEventListener('click', () => { const im = images[S.selected]; if (!im) return; record(); im.zoom = 1; im.cx = im.cy = .5; ui(); schedule(); });
+$('#removeImg').addEventListener('click', () => { if (S.selected == null) return; record(); images[S.selected] = null; ui(); schedule(); });
+let armTimer = 0;
+$('#clearAll').addEventListener('click', e => {
+  const b = e.currentTarget;
+  if (!b.classList.contains('danger-arm')) {
+    b.classList.add('danger-arm'); b.textContent = 'Click again to clear';
+    clearTimeout(armTimer); armTimer = setTimeout(() => { b.classList.remove('danger-arm'); b.textContent = 'Clear all images'; }, 3000);
+    return;
+  }
+  clearTimeout(armTimer); b.classList.remove('danger-arm'); b.textContent = 'Clear all images';
+  record(); images = []; S.selected = 0; ui(); schedule(); toast('All images cleared');
+});
+
+function ui() {
+  histUI();
+  const n = slotCount(), L = byId(S.layoutId);
+  if (S.selected != null && S.selected >= n) S.selected = firstFree();
+  layWrap.querySelectorAll('.lay').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.id === S.layoutId)));
+  $('#layName').innerHTML = `<b>${L.name}</b> · ${n} image${n > 1 ? 's' : ''}`;
+  $('#gap').value = S.gap; $('#gapV').textContent = S.gap;
+  $('#radius').value = S.radius; $('#radiusV').textContent = S.radius;
+  $('#outer').checked = S.outer;
+  swWrap.querySelectorAll('.sw').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.c.toUpperCase() === S.bg.toUpperCase())));
+  if (/^#[0-9a-f]{6}$/i.test(S.bg)) pick.value = S.bg.toLowerCase();
+  $('#fitSeg').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.fit === S.fit)));
+  $('#sampleNote').hidden = !hasSamples();
+  const filled = [...Array(n).keys()].filter(i => images[i] && !images[i].sample).length;
+  let st;
+  if (S.selected == null) st = filled >= n ? `All ${n} slots filled · click a slot to replace its image` : 'Click a slot to choose where the next paste goes';
+  else st = isFree(S.selected) ? `Next paste goes to slot ${S.selected + 1} of ${n}` : `Slot ${S.selected + 1} selected · pasting replaces its image`;
+  $('#status').textContent = st;
+  $('#dims').textContent = `${filled}/${n} images · ${S.res} × ${Math.round(S.res * 9 / 16)} px · 16:9`;
+  const im = S.selected != null ? images[S.selected] : null;
+  $('#selTitle').textContent = S.selected == null ? 'No slot selected' : `Slot ${S.selected + 1}${im && im.sample ? ' (sample)' : ''}`;
+  $('#selEmpty').hidden = !!im || S.selected == null;
+  $('#selCtrls').hidden = !im;
+  if (im) { $('#zoom').value = im.zoom; $('#zoomV').textContent = Math.round(im.zoom * 100) + '%'; }
+}
+
+let tt = 0;
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('on'), 2600); }
+
+/* ---------- theme tracking ---------- */
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readTokens);
+new MutationObserver(readTokens).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+/* ---------- start ---------- */
+loadSamples();
+readTokens(); fitCanvas(); ui(); schedule();
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (hasSamples() && images.every(im => !im || im.sample)) loadSamples(); schedule(); });
+})();
+</script>
+</body></html>

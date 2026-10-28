@@ -1,0 +1,11 @@
+{
+  "name": "clipboard-collage",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Paste images from the clipboard into a 16:9 collage.",
+  "dependencies": {
+    "@capacitor/android": "^6.1.0",
+    "@capacitor/cli": "^6.1.0",
+    "@capacitor/core": "^6.1.0"
+  }
+}
