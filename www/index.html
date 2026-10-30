@@ -53,7 +53,11 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 300px;min-height:0}
   padding-block:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:16px}
 .wrap{flex:1;min-height:0;display:grid;place-items:center}
 canvas#cv{display:block;max-width:100%;box-shadow:0 1px 2px rgba(0,0,0,.12),0 8px 30px rgba(0,0,0,.14);touch-action:none;border-radius:2px;background:#fff}
-.toolbar{display:flex;gap:8px;flex-wrap:wrap}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.zoomgrp{display:flex;align-items:center;gap:6px;flex:1 1 230px;min-width:0;max-width:360px;margin-left:auto}
+.zoomgrp input[type=range]{flex:1;min-width:60px;accent-color:var(--accent)}
+.zoomgrp .val{width:46px;flex:none}
+.btn.icon{width:30px;padding:0;justify-content:center;flex:none}
 .btn:disabled{opacity:.4;cursor:default}
 .btn:disabled:hover{border-color:var(--line);background:var(--panel)}
 .statusbar{display:flex;gap:10px 18px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--muted)}
@@ -125,6 +129,7 @@ aside{background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;
 .pastezone:focus,.pastezone.pulse{box-shadow:0 0 0 3px var(--accent);background:var(--accent-soft)}
 @media (pointer:coarse){.pastezone{display:flex}}
 @media (max-width:860px){
+  .zoomgrp{max-width:none;margin-left:0;flex-basis:100%}
   html,body{height:auto}
   .app{height:auto;min-height:100%}
   main{grid-template-columns:1fr}
@@ -142,6 +147,8 @@ aside{background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;
     <div class="brand"><h1>Clipboard Collage</h1><span class="ratio">16:9</span></div>
     <div class="actions">
       <button class="btn" id="pasteBtn" title="Paste from clipboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>Paste</button>
+      <button class="btn" id="uploadBtn" title="Upload images from your device"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>Upload</button>
+      <input type="file" id="fileIn" accept="image/*" multiple hidden aria-label="Choose images to upload">
       <button class="btn" id="copyBtn" title="Copy collage to clipboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy collage</button>
       <button class="btn primary" id="exportBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>Export</button>
     </div>
@@ -153,14 +160,15 @@ aside{background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;
         <button class="btn small" id="undoBtn" title="Undo (Ctrl+Z)" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>Undo</button>
         <button class="btn small" id="redoBtn" title="Redo (Ctrl+Shift+Z)" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>Redo</button>
         <button class="btn small" id="swapBtn" title="Swap the two images"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4L3 8l4 4"/><path d="M3 8h14"/><path d="M17 20l4-4-4-4"/><path d="M21 16H7"/></svg>Swap images</button>
+        <div class="zoomgrp" role="group" aria-label="Zoom the selected image"><button class="btn small icon" id="zoomOut" title="Zoom out" aria-label="Zoom out" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14"/></svg></button><input type="range" id="zoom" min="1" max="8" step="0.01" value="1" aria-label="Zoom" disabled><button class="btn small icon" id="zoomIn" title="Zoom in" aria-label="Zoom in" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button><span class="val" id="zoomV">&mdash;</span></div>
       </div>
       <div class="wrap" id="wrap"><canvas id="cv" width="1920" height="1080" tabindex="0" role="img" aria-label="Collage canvas"></canvas></div>
       <div class="pastezone" id="pasteZone" contenteditable="true" inputmode="none" role="textbox" spellcheck="false" autocapitalize="off" autocorrect="off" aria-label="Paste box. Touch and hold, then choose Paste." data-ph="Touch and hold here, then tap Paste"></div>
-      <div class="statusbar"><span class="now" id="status">Next paste goes to slot 1</span><span class="dims" id="dims">1920 × 1080 px · 16:9</span></div>
+      <div class="statusbar"><span class="now" id="status">Next image goes to slot 1</span><span class="dims" id="dims">1920 × 1080 px · 16:9</span></div>
       <div class="hints">
         <span><kbd><span data-mod>Ctrl</span>+V</kbd> paste into the highlighted slot</span>
-        <span>Click a slot to choose where the next paste goes</span>
-        <span>Drag to pan · scroll to zoom</span>
+        <span>Click a slot to choose where the next image goes</span>
+        <span>Drag to pan · scroll or pinch to zoom · double-click to zoom in and out</span>
         <span><kbd>Shift</kbd>+drag to swap slots</span>
         <span><kbd><span data-mod>Ctrl</span>+Z</kbd> undo</span>
         <span>Drag a gap to resize the split</span>
@@ -169,7 +177,7 @@ aside{background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;
     </section>
 
     <aside>
-      <div class="note" id="sampleNote">These are sample images. Your first paste clears them.</div>
+      <div class="note" id="sampleNote">These are sample images. Your first paste or upload clears them.</div>
 
       <div class="sec">
         <div class="sec-head"><span class="label">Layout</span><button class="linkbtn" id="resetSplits">Reset split sizes</button></div>
@@ -181,10 +189,9 @@ aside{background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;
         <span class="label">Selected slot</span>
         <div class="slotbox">
           <div class="t" id="selTitle">Slot 1</div>
-          <p id="selEmpty">Empty. Press <kbd><span data-mod>Ctrl</span>+V</kbd> to paste into it.</p>
+          <p id="selEmpty">Empty. Press <kbd><span data-mod>Ctrl</span>+V</kbd> to paste into it, or tap Upload.</p>
           <div id="selCtrls" hidden>
-            <div class="row"><label for="zoom">Zoom</label><input type="range" id="zoom" min="1" max="5" step="0.01" value="1"><span class="val" id="zoomV">100%</span></div>
-            <div class="btnrow" style="margin-top:10px"><button class="btn small" id="resetImg">Reset position</button><button class="btn small" id="removeImg">Remove</button></div>
+            <div class="btnrow"><button class="btn small" id="resetImg">Reset position</button><button class="btn small" id="removeImg">Remove</button></div>
           </div>
         </div>
       </div>
@@ -381,8 +388,10 @@ function geometry(W, H, rows = S.rows, gapUnits = S.gap, outer = S.outer) {
   return { slots, rowDiv, colDiv, rowH, colW, k, g, m, W, H };
 }
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const ZMAX = 8;
+const baseScale = (im, s) => S.fit === 'fill' ? Math.max(s.w / im.w, s.h / im.h) : Math.min(s.w / im.w, s.h / im.h);
 function placement(im, s) {
-  const base = S.fit === 'fill' ? Math.max(s.w / im.w, s.h / im.h) : Math.min(s.w / im.w, s.h / im.h);
+  const base = baseScale(im, s);
   const sc = base * im.zoom;
   const hx = s.w / (2 * sc * im.w), hy = s.h / (2 * sc * im.h);
   im.cx = hx >= .5 ? .5 : clamp(im.cx, hx, 1 - hx);
@@ -421,7 +430,8 @@ function render(c, W, H, preview) {
 const cv = $('#cv'), ctx = cv.getContext('2d');
 let tok = { accent: '#2B54E0' };
 function readTokens() { const v = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim(); if (v) tok.accent = v; schedule(); }
-let hover = null, drag = null, raf = 0;
+let hover = null, drag = null, raf = 0, lastTap = null;
+const pts = new Map();
 const schedule = () => { if (!raf) raf = requestAnimationFrame(draw); };
 
 function pill(c, x, y, text, bgc, fg) {
@@ -443,7 +453,7 @@ function draw() {
     const fs = clamp(Math.min(s.h * .12, s.w * .075), 16, 42);
     const cx = s.x + s.w / 2, cy = s.y + s.h / 2;
     ctx.fillStyle = ph[2]; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.font = `600 ${fs}px Manrope, system-ui, sans-serif`; ctx.fillText('Paste image', cx, cy - fs * .4);
+    ctx.font = `600 ${fs}px Manrope, system-ui, sans-serif`; ctx.fillText('Paste or upload', cx, cy - fs * .4);
     ctx.font = `500 ${fs * .55}px "JetBrains Mono", ui-monospace, monospace`; ctx.fillText((coarse.matches ? '' : MOD + '+V · ') + 'slot ' + (s.i + 1), cx, cy + fs * .7);
   }
   // swap target
@@ -458,7 +468,7 @@ function draw() {
   if (sel) {
     ctx.save(); ctx.lineWidth = 6; ctx.strokeStyle = tok.accent;
     rr(ctx, sel.x + 3, sel.y + 3, sel.w - 6, sel.h - 6, Math.max(0, r - 3)); ctx.stroke(); ctx.restore();
-    pill(ctx, sel.x + 14, sel.y + 14, isFree(sel.i) ? 'Next paste' : 'Selected', tok.accent, '#fff');
+    pill(ctx, sel.x + 14, sel.y + 14, isFree(sel.i) ? 'Next image' : 'Selected', tok.accent, '#fff');
   }
   // divider highlight
   const d = drag && (drag.type === 'row' || drag.type === 'col') ? drag : hover;
@@ -511,6 +521,22 @@ const hitSlot = (p, G) => G.slots.find(s => p.x >= s.x && p.x <= s.x + s.w && p.
 cv.addEventListener('pointerdown', e => {
   if (e.button !== 0) return;
   const p = pt(e), G = geometry(BW, BH);
+  if (e.pointerType === 'touch') {
+    pts.set(e.pointerId, p);
+    if (pts.size === 2 && !(drag && (drag.type === 'row' || drag.type === 'col'))) {
+      const [a, b] = [...pts.values()], mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      const ps = hitSlot(mid, G);
+      if (ps && images[ps.i]) {
+        endGroup(); record('pinch');
+        const im = images[ps.i], pl = placement(im, ps);
+        drag = { type: 'pinch', i: ps.i, d0: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), z0: im.zoom,
+                 ix: (mid.x - pl.x) / (im.w * pl.sc), iy: (mid.y - pl.y) / (im.h * pl.sc) };
+        S.selected = ps.i; try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+        ui(); schedule(); return;
+      }
+    }
+    if (pts.size > 1) return;
+  }
   const d = hitDivider(p, G);
   if (d) {
     if (d.type === 'row') drag = { type: 'row', ri: d.ri, start: p.y, a: G.rowH[d.ri], b: G.rowH[d.ri + 1], wa: S.rows[d.ri].h, wb: S.rows[d.ri + 1].h };
@@ -521,12 +547,27 @@ cv.addEventListener('pointerdown', e => {
   S.selected = s.i; cv.focus({ preventScroll: true });
   const im = images[s.i];
   if (im && e.shiftKey) drag = { type: 'swap', from: s.i, to: s.i };
-  else if (im) drag = { type: 'pan', i: s.i, last: p, slot: s };
+  else if (im) drag = { type: 'pan', i: s.i, last: p, start: p, slot: s, active: false, t0: performance.now(), f: p.f };
   if (drag) cv.setPointerCapture(e.pointerId);
   ui(); schedule();
 });
 cv.addEventListener('pointermove', e => {
   const p = pt(e), G = geometry(BW, BH);
+  if (pts.has(e.pointerId)) pts.set(e.pointerId, p);
+  if (drag && drag.type === 'pinch') {
+    if (pts.size >= 2) {
+      const [a, b] = [...pts.values()], mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      const im = images[drag.i], s = G.slots.find(q => q.i === drag.i);
+      if (im && s) {
+        im.zoom = clamp(drag.z0 * Math.hypot(a.x - b.x, a.y - b.y) / drag.d0, 1, ZMAX);
+        const sc2 = baseScale(im, s) * im.zoom;
+        im.cx = drag.ix - (mid.x - (s.x + s.w / 2)) / (sc2 * im.w);
+        im.cy = drag.iy - (mid.y - (s.y + s.h / 2)) / (sc2 * im.h);
+        ui(); schedule();
+      }
+    }
+    return;
+  }
   if (drag) {
     if (drag.type === 'row' || drag.type === 'col') {
       const delta = (drag.type === 'row' ? p.y : p.x) - drag.start;
@@ -535,7 +576,11 @@ cv.addEventListener('pointermove', e => {
       if (drag.type === 'row') { S.rows[drag.ri].h = wt * a2 / tot; S.rows[drag.ri + 1].h = wt - S.rows[drag.ri].h; }
       else { const c = S.rows[drag.ri].cols; c[drag.ci] = wt * a2 / tot; c[drag.ci + 1] = wt - c[drag.ci]; }
     } else if (drag.type === 'pan') {
-      if (Math.abs(p.x - drag.last.x) + Math.abs(p.y - drag.last.y) > 0.5) record('pan');
+      if (!drag.active) {
+        if (Math.abs(p.x - drag.start.x) + Math.abs(p.y - drag.start.y) < 6 * p.f) return;
+        drag.active = true;
+      }
+      record('pan');
       const im = images[drag.i], s = G.slots.find(q => q.i === drag.i);
       if (im && s) { const pl = placement(im, s); im.cx -= (p.x - drag.last.x) / (im.w * pl.sc); im.cy -= (p.y - drag.last.y) / (im.h * pl.sc); }
       drag.last = p;
@@ -550,8 +595,22 @@ cv.addEventListener('pointermove', e => {
   if (d) cv.style.cursor = d.type === 'row' ? 'ns-resize' : 'ew-resize';
   else { const s = hitSlot(p, G); cv.style.cursor = s && images[s.i] ? (e.shiftKey ? 'move' : 'grab') : (s ? 'pointer' : 'default'); }
 });
+function toggleZoom(i, p) {
+  const im = images[i]; if (!im) return;
+  record();
+  if (im.zoom > 1.05) { im.zoom = 1; im.cx = im.cy = .5; } else zoomAt(i, 2.5, p);
+  S.selected = i; ui(); schedule();
+}
 function endDrag() {
   if (!drag) return;
+  if (drag.type === 'pan' && !drag.active) {
+    const now = performance.now();
+    if (now - drag.t0 < 350) {
+      if (lastTap && lastTap.i === drag.i && now - lastTap.t < 400 &&
+          Math.abs(drag.start.x - lastTap.x) + Math.abs(drag.start.y - lastTap.y) < 40 * (drag.f || 1)) { toggleZoom(drag.i, drag.start); lastTap = null; }
+      else lastTap = { t: now, i: drag.i, x: drag.start.x, y: drag.start.y };
+    }
+  }
   if (drag.type === 'swap' && drag.to !== drag.from) {
     record(); const a = drag.from, b = drag.to; const t = images[a]; images[a] = images[b] || null; images[b] = t;
     S.selected = b; toast(`Swapped slot ${a + 1} and slot ${b + 1}`);
@@ -559,20 +618,37 @@ function endDrag() {
   if (drag.type === 'row' || drag.type === 'col') save();
   endGroup(); drag = null; ui(); schedule();
 }
-cv.addEventListener('pointerup', endDrag);
-cv.addEventListener('pointercancel', endDrag);
+function onPointerEnd(e) {
+  pts.delete(e.pointerId);
+  if (drag && drag.type === 'pinch' && pts.size >= 2) return;
+  endDrag();
+}
+cv.addEventListener('pointerup', onPointerEnd);
+cv.addEventListener('pointercancel', onPointerEnd);
 cv.addEventListener('pointerleave', () => { if (!drag && hover) { hover = null; schedule(); } });
+function zoomAt(i, z, p, G) {
+  G = G || geometry(BW, BH);
+  const s = G.slots.find(q => q.i === i), im = images[i]; if (!s || !im) return;
+  const pl = placement(im, s);
+  const ix = (p.x - pl.x) / (im.w * pl.sc), iy = (p.y - pl.y) / (im.h * pl.sc);
+  im.zoom = clamp(z, 1, ZMAX);
+  const sc2 = baseScale(im, s) * im.zoom;
+  im.cx = ix - (p.x - (s.x + s.w / 2)) / (sc2 * im.w);
+  im.cy = iy - (p.y - (s.y + s.h / 2)) / (sc2 * im.h);
+}
+function zoomSelected(f) {
+  const i = S.selected, im = i == null ? null : images[i]; if (!im) return;
+  const G = geometry(BW, BH), s = G.slots.find(q => q.i === i); if (!s) return;
+  record('zoombtn'); clearTimeout(groupTimer); groupTimer = setTimeout(endGroup, 600);
+  zoomAt(i, im.zoom * f, { x: s.x + s.w / 2, y: s.y + s.h / 2 }, G);
+  ui(); schedule();
+}
 cv.addEventListener('wheel', e => {
   const p = pt(e), G = geometry(BW, BH), s = hitSlot(p, G);
   if (!s || !images[s.i]) return;
   e.preventDefault();
-  const im = images[s.i], pl = placement(im, s);
-  const ix = (p.x - pl.x) / (im.w * pl.sc), iy = (p.y - pl.y) / (im.h * pl.sc);
   record('wheel'); clearTimeout(groupTimer); groupTimer = setTimeout(endGroup, 500);
-  im.zoom = clamp(im.zoom * Math.exp(-e.deltaY * 0.0015), 1, 5);
-  const sc2 = pl.base * im.zoom;
-  im.cx = ix - (p.x - (s.x + s.w / 2)) / (sc2 * im.w);
-  im.cy = iy - (p.y - (s.y + s.h / 2)) / (sc2 * im.h);
+  zoomAt(s.i, images[s.i].zoom * Math.exp(-e.deltaY * 0.0015), p, G);
   S.selected = s.i; ui(); schedule();
 }, { passive: false });
 
@@ -601,7 +677,7 @@ async function addBlobs(blobs) {
     let t = (S.selected != null && S.selected < slotCount()) ? S.selected : firstFree();
     if (t == null) { toast('Every slot has an image. Click a slot to replace it.'); break; }
     let d;
-    try { d = await loadBlob(b); } catch (e) { toast('That clipboard item could not be read as an image.'); continue; }
+    try { d = await loadBlob(b); } catch (e) { toast('That image could not be read.'); continue; }
     images[t] = { ...d, zoom: 1, cx: .5, cy: .5 };
     placed++;
     S.selected = firstFree(t + 1);
@@ -654,8 +730,16 @@ $('#pasteBtn').addEventListener('click', async () => {
 const zone = $('#pasteZone');
 ['beforeinput','cut','drop','dragover'].forEach(t => zone.addEventListener(t, e => e.preventDefault()));
 zone.addEventListener('keydown', e => { if (!(e.ctrlKey || e.metaKey)) e.preventDefault(); });
-if (hasNative()) { zone.style.display = 'none'; $('#selEmpty').textContent = 'Empty. Tap Paste at the top to add the image you copied.'; }
-else if (coarse.matches) $('#selEmpty').innerHTML = 'Empty. Touch and hold the paste box under the canvas, then tap Paste.';
+if (hasNative()) { zone.style.display = 'none'; $('#selEmpty').textContent = 'Empty. Tap Paste to add the image you copied, or tap Upload to pick a photo.'; }
+else if (coarse.matches) $('#selEmpty').innerHTML = 'Empty. Touch and hold the paste box under the canvas, then tap Paste. Or tap Upload.';
+const fileIn = $('#fileIn');
+$('#uploadBtn').addEventListener('click', () => { fileIn.value = ''; fileIn.click(); });
+fileIn.addEventListener('change', () => {
+  const files = [...fileIn.files].filter(f => f.type.startsWith('image/') || !f.type);
+  fileIn.value = '';
+  if (!files.length) { toast('Choose an image file.'); return; }
+  addBlobs(files);
+});
 // drag and drop also works, as a convenience
 cv.addEventListener('dragover', e => { e.preventDefault(); });
 cv.addEventListener('drop', e => {
@@ -792,6 +876,8 @@ document.addEventListener('keydown', e => {
   if ((e.key === 'Delete' || e.key === 'Backspace') && S.selected != null && images[S.selected]) {
     e.preventDefault(); record(); images[S.selected] = null; ui(); schedule(); return;
   }
+  if ((e.key === '+' || e.key === '=') && S.selected != null && images[S.selected]) { e.preventDefault(); zoomSelected(1.25); return; }
+  if ((e.key === '-' || e.key === '_') && S.selected != null && images[S.selected]) { e.preventDefault(); zoomSelected(0.8); return; }
   if (/^[1-9]$/.test(e.key) && +e.key <= slotCount() && document.activeElement?.type !== 'range') { S.selected = +e.key - 1; ui(); schedule(); }
 });
 
@@ -839,8 +925,10 @@ $('#fitSeg').addEventListener('click', e => {
   record(); S.fit = b.dataset.fit; images.forEach(im => { if (im) { im.zoom = 1; im.cx = im.cy = .5; } });
   save(); ui(); schedule();
 });
-$('#zoom').addEventListener('input', e => { const im = images[S.selected]; if (!im) return; record('zoom-slider'); im.zoom = +e.target.value; $('#zoomV').textContent = Math.round(im.zoom * 100) + '%'; schedule(); });
+$('#zoom').addEventListener('input', e => { const im = images[S.selected]; if (!im) return; record('zoom-slider'); im.zoom = clamp(+e.target.value, 1, ZMAX); ui(); schedule(); });
 $('#zoom').addEventListener('change', endGroup);
+$('#zoomIn').addEventListener('click', () => zoomSelected(1.25));
+$('#zoomOut').addEventListener('click', () => zoomSelected(0.8));
 $('#resetImg').addEventListener('click', () => { const im = images[S.selected]; if (!im) return; record(); im.zoom = 1; im.cx = im.cy = .5; ui(); schedule(); });
 $('#removeImg').addEventListener('click', () => { if (S.selected == null) return; record(); images[S.selected] = null; ui(); schedule(); });
 let armTimer = 0;
@@ -870,15 +958,18 @@ function ui() {
   $('#sampleNote').hidden = !hasSamples();
   const filled = [...Array(n).keys()].filter(i => images[i] && !images[i].sample).length;
   let st;
-  if (S.selected == null) st = filled >= n ? `All ${n} slots filled · click a slot to replace its image` : 'Click a slot to choose where the next paste goes';
-  else st = isFree(S.selected) ? `Next paste goes to slot ${S.selected + 1} of ${n}` : `Slot ${S.selected + 1} selected · pasting replaces its image`;
+  if (S.selected == null) st = filled >= n ? `All ${n} slots filled · click a slot to replace its image` : 'Click a slot to choose where the next image goes';
+  else st = isFree(S.selected) ? `Next image goes to slot ${S.selected + 1} of ${n}` : `Slot ${S.selected + 1} selected · pasting replaces its image`;
   $('#status').textContent = st;
   $('#dims').textContent = `${filled}/${n} images · ${S.res} × ${Math.round(S.res * 9 / 16)} px · 16:9`;
   const im = S.selected != null ? images[S.selected] : null;
   $('#selTitle').textContent = S.selected == null ? 'No slot selected' : `Slot ${S.selected + 1}${im && im.sample ? ' (sample)' : ''}`;
   $('#selEmpty').hidden = !!im || S.selected == null;
   $('#selCtrls').hidden = !im;
-  if (im) { $('#zoom').value = im.zoom; $('#zoomV').textContent = Math.round(im.zoom * 100) + '%'; }
+  $('#zoom').disabled = !im;
+  $('#zoomIn').disabled = !im || im.zoom >= ZMAX - 0.001;
+  $('#zoomOut').disabled = !im || im.zoom <= 1.001;
+  if (im) { $('#zoom').value = im.zoom; $('#zoomV').textContent = Math.round(im.zoom * 100) + '%'; } else { $('#zoom').value = 1; $('#zoomV').textContent = '\u2014'; }
 }
 
 let tt = 0;

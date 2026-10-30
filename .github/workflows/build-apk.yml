@@ -38,6 +38,14 @@ jobs:
           sed -i -E 's/>#[0-9A-Fa-f]{6,8}</>#2B54E0</' android/app/src/main/res/values/ic_launcher_background.xml || true
           find android/app/src/main/res -name 'splash.png' -exec cp native/splash.png {} \;
 
+      - name: Use the fixed signing key and a rising version number
+        run: |
+          mkdir -p ~/.android
+          cp native/debug.keystore ~/.android/debug.keystore
+          sed -i -E "s/versionCode [0-9]+/versionCode ${{ github.run_number }}/" android/app/build.gradle
+          sed -i -E 's/versionName "[^"]*"/versionName "1.${{ github.run_number }}"/' android/app/build.gradle
+          grep -q "versionCode ${{ github.run_number }}" android/app/build.gradle
+
       - name: Copy the web app in
         run: npx cap sync android
 
